@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI for Everyone | A Statewide Initiative</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        ai: {
+                            base: '#0f172a',
+                            darker: '#020617',
+                            accent: '#38bdf8', // Cyan/Light Blue
+                            glow: '#818cf8',   // Indigo
+                            purple: '#c084fc', // Purple accent
+                        }
+                    },
+                    animation: {
+                        'spin-slow': 'spin 12s linear infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* --- BASE STYLES --- */
+        ::-webkit-scrollbar { display: none; }
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            cursor: none; /* Hide default cursor */
+        }
+
+        /* --- TYPOGRAPHY UTILS --- */
+        .gradient-text {
+            background: linear-gradient(to right, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gradient-text-purple {
+            background: linear-gradient(to right, #c084fc, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* --- CURSOR & BACKGROUND --- */
+        #cursor-particle {
+            position: fixed; top: 0; left: 0; width: 20px; height: 20px;
+            border: 2px solid #38bdf8; background-color: rgba(56, 189, 248, 0.2);
+            border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%);
+            z-index: 9999; box-shadow: 0 0 10px #38bdf8, 0 0 20px #38bdf8;
+            transition: transform 0.05s linear, opacity 0.2s ease; mix-blend-mode: screen;
+            opacity: 0;
+        }
+        
+        #cursor-particle::before {
+            content: ''; position: absolute; top: 50%; left: 50%; width: 50px; height: 50px;
+            border: 2px solid rgb(0, 255, 255); border-radius: 50%;
+            transform: translate(-50%, -50%); animation: cursorPulse 2s infinite ease-in-out;
+        }
+        /* Center dot for precision */
+        #cursor-particle::after {
+            content: ''; position: absolute; top: 50%; left: 50%; width: 4px; height: 4px;
+            background-color: white; border-radius: 50%; transform: translate(-50%, -50%);
+        }
+        @keyframes cursorPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+            50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.2; }
+        }
+        .click-ripple {
+            position: fixed;
+            border: 2px solid rgb(0, 255, 225);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9997;
+            width: 0px;
+            height: 0px;
+            transform: translate(-50%, -50%);
+            animation: ripple 0.6s ease-out forwards;
+        }
+
+        @keyframes ripple {
+           
+            100%{
+            width: 300px;
+            height: 300px;
+            border: 2px solid rgb(0, 255, 225);
+            opacity: 0;
+            }
+        }
+        #neural-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; opacity: 0.5;
+        }
+
+        /* --- UI COMPONENTS --- */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+            cursor: none;
+        }
+        .glass-card:hover {
+            transform: translateY(-7px);
+            border-color: rgba(56, 189, 248, 0.5);
+            background: rgba(255, 255, 255, 0.07);
+            box-shadow: 0 10px 40px -10px rgba(56, 189, 248, 0.3);
+        }
+        
+        /* --- SCROLL REVEAL ANIMATION --- */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Hover interactions */
+        a, button { cursor: none; }
+        a:hover ~ #cursor-particle, button:hover ~ #cursor-particle, .glass-card:hover ~ #cursor-particle {
+            transform: scale(1.5);
+            border-color: white;
+        }
+        body.game-locked { overflow: hidden; touch-action: none; position: fixed; width: 100%; height: 100%; }
+        .gradient-text { background: linear-gradient(to right, #38bdf8, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* --- 3D CUBE --- */
+        .scene { width: 150px; height: 150px; perspective: 600px; margin: 40px auto; }
+        .cube { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); } 
+        .cube-face { position: absolute; width: 150px; height: 150px; border: 2px solid #38bdf8; background: rgba(56, 189, 248, 0.15); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; backface-visibility: visible; user-select: none; text-transform: uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .cube-face.front  { transform: rotateY( 0deg) translateZ(75px); }
+        .cube-face.right  { transform: rotateY( 90deg) translateZ(75px); }
+        .cube-face.back   { transform: rotateY(180deg) translateZ(75px); }
+        .cube-face.left   { transform: rotateY(-90deg) translateZ(75px); }
+        .cube-face.top    { transform: rotateX( 90deg) translateZ(75px); }
+        .cube-face.bottom { transform: rotateX(-90deg) translateZ(75px); }
+
+        /* --- GAME UI --- */
+        #game-trigger-btn { position: fixed; bottom: 30px; right: 30px; z-index: 100; background: rgba(15, 23, 42, 0.9); border: 1px solid #38bdf8; backdrop-filter: blur(10px); box-shadow: 0 0 20px rgba(56, 189, 248, 0.3); animation: bounce-slow; cursor: pointer; }
+        #game-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(2, 6, 23, 0.98); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; padding: 20px; overflow-y: auto; }
+        #game-overlay.active { opacity: 1; pointer-events: auto; }
+        .game-container { display: none; width: 100%; max-width: 500px; text-align: center; }
+        .game-container.active { display: block; animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .glass-panel { background: rgba(0, 0, 0, 0.368); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 30px rgba(0,0,0,0.1); }
+        .arcade-btn { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 12px; font-weight: bold; text-align: left; display: flex; align-items: center; gap: 15px; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); }
+        .arcade-btn:hover { background: rgba(56, 189, 248, 0.1); border-color: #38bdf8; transform: translateX(5px); }
+        
+        .ttt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 300px; margin: 0 auto; }
+        .ttt-cell { aspect-ratio: 1; background: rgba(255,255,255,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: bold; cursor: pointer; border: 1px solid transparent; transition: background 0.2s; }
+        .ttt-cell:active { background: rgba(255,255,255,0.2); }
+        .ttt-cell.x { color: #38bdf8; text-shadow: 0 0 10px #38bdf8; }
+        .ttt-cell.o { color: #c084fc; text-shadow: 0 0 10px #c084fc; }
+
+        #neural-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.5; }
+        body.neural-active #neural-canvas { z-index: 50; opacity: 1; background: rgba(2, 6, 23,0.9); }
+        body.neural-active #game-overlay { background: transparent; pointer-events: none; }
+        body.neural-active #game-neural { pointer-events: auto; }
+    </style>
+</head>
+<body class="antialiased selection:bg-ai-accent selection:text-ai-base">
+
+    <div id="cursor-particle"></div>
+    <canvas id="neural-canvas"></canvas>
+
+    <nav class="fixed w-full z-50 bg-ai-base/80 border-b border-white/5 backdrop-blur-xl transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-tr from-ai-accent to-ai-purple rounded-xl flex items-center justify-center shadow-lg shadow-ai-accent/20">
+                        <i class="fa-solid fa-brain text-white text-xl"></i>
+                    </div>
+                    <span class="font-display font-bold text-xl tracking-wide text-white">TINKERHUB_MARALA</span>
+                </div>
+                <div class="hidden md:flex items-center gap-8 font-medium text-sm">
+                    <a href="#mission" class="hover:text-ai-accent transition-colors relative group">Mission<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-ai-accent transition-all group-hover:w-full"></span></a>
+                    <a href="#approach" class="hover:text-ai-accent transition-colors relative group">Approach<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-ai-accent transition-all group-hover:w-full"></span></a>
+                    <a href="#targets" class="hover:text-ai-accent transition-colors relative group">Target Groups<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-ai-accent transition-all group-hover:w-full"></span></a>
+                    <a href="#partners" class="bg-white/10 px-6 py-2.5 rounded-full hover:bg-ai-accent hover:text-ai-base transition-all duration-300 font-bold border border-white/10 hover:border-ai-accent hover:shadow-[0_0_20px_rgba(56,189,248,0.4)]">Partner With Us</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <header class="relative pt-40 pb-24 lg:pt-52 lg:pb-40 overflow-hidden">
+        <div class="absolute top-1/4 left-10 w-64 h-64 bg-ai-accent/20 rounded-full blur-[120px] -z-10 animate-pulse"></div>
+        <div class="absolute bottom-1/4 right-10 w-64 h-64 bg-ai-purple/20 rounded-full blur-[120px] -z-10 animate-pulse delay-700"></div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center reveal">
+            <h1 class="text-5xl md:text-8xl font-display font-bold mb-8 leading-tight tracking-tight">
+                AI for <span class="gradient-text">Everyone.</span>
+            </h1>
+            <p class="text-2xl md:text-3xl text-ai-accent font-display font-medium mb-6">
+                A Statewide Initiative for AI Literacy in Kerala.
+            </p>
+
+            <div class="max-w-3xl mx-auto mb-12 reveal">
+                <div class="glass-card p-8 rounded-2xl relative border-l-4 border-ai-accent text-left">
+                    <i class="fa-solid fa-quote-left text-4xl text-ai-accent/30 absolute top-4 left-4"></i>
+                    <p class="text-lg md:text-xl text-slate-200 italic relative z-10 pl-6">
+                        "We have a historical opportunity and responsibility to establish a human-centred framework for AI research, education, practice and policy."
+                    </p>
+                    <p class="text-ai-accent font-bold mt-4 pl-6">— Fei-Fei Li, Stanford University & Co-Founder of AI4ALL</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row justify-center gap-4 reveal">
+                <a href="#mission" class="px-8 py-4 rounded-full bg-gradient-to-r from-ai-accent to-ai-purple font-bold text-ai-base shadow-lg shadow-ai-accent/20 hover:shadow-ai-accent/50 hover:scale-105 transition-all flex items-center justify-center gap-2 group">
+                    Explore the Initiative <i class="fa-solid fa-arrow-down group-hover:translate-y-1 transition-transform"></i>
+                </a>
+                <a href="https://ai-challenge-build-with-ai-hmt7.vercel.app/" target="_blank" class="px-8 py-4 rounded-full bg-white/5 font-bold text-white border border-white/10 hover:bg-white/10 hover:border-white/30 transition-all flex items-center justify-center gap-2">
+                    View Challenge <i class="fa-solid fa-external-link text-sm"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <section id="mission" class="py-24 relative z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-2 gap-16 items-center">
+                <div class="reveal">
+                    <span class="text-ai-accent font-bold tracking-widest uppercase mb-4 block">TL;DR — The Mission</span>
+                    <h2 class="text-4xl md:text-5xl font-display font-bold mb-6">Democratizing AI Knowledge Across Kerala.</h2>
+                    <p class="text-lg text-slate-300 leading-relaxed mb-6">
+                        The “AI for Everyone” initiative, enabled by <strong>TinkerHub</strong>, builds on Kerala’s digital literacy legacy. We aim to make communities active creators in the AI era, addressing skill gaps, workforce changes, and misinformation.
+                    </p>
+                    <p class="text-lg text-slate-300 leading-relaxed">
+                        Our goal is to position Kerala as a global model for responsible, human-centered AI.
+                    </p>
+                </div>
+                <div class="reveal">
+                    <div class="aspect-square relative rounded-3xl overflow-hidden glass-card flex items-center justify-center p-12 group animate-on-scroll">
+                        <div class="absolute inset-0 bg-gradient-to-br from-ai-accent/10 to-ai-purple/10 opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                        <div class="relative z-10 text-center">
+                            <i class="fa-solid fa-hand-holding-heart text-8xl text-ai-accent mb-4 filter drop-shadow-[0_0_20px_rgba(56,189,248,0.6)] animate-pulse"></i>
+                            <div class="flex justify-center gap-4 mt-4 text-4xl text-ai-purple/70">
+                                <i class="fa-solid fa-book-open"></i>
+                                <i class="fa-solid fa-robot"></i>
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-brain text-3xl text-ai-accent/40 absolute top-10 left-10 animate-spin-slow"></i>
+                        <i class="fa-solid fa-network-wired text-3xl text-ai-purple/40 absolute bottom-10 right-10 animate-spin-slow" style="animation-direction: reverse;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-24 bg-ai-darker/50 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+             <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-4xl font-display font-bold">Why Kerala Needs AI Literacy Now?</h2>
+                <p class="text-slate-400 mt-4 text-lg max-w-2xl mx-auto">Seizing the historical opportunity to lead responsibly.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="glass-card p-8 rounded-3xl relative overflow-hidden group reveal delay-100">
+                    <div class="w-14 h-14 bg-ai-accent/20 rounded-2xl flex items-center justify-center mb-6 text-ai-accent shadow-[0_0_20px_rgba(56,189,248,0.2)] group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-globe text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold font-display mb-3 text-white">1. Literacy for All & Global Model</h3>
+                    <p class="text-slate-400 leading-relaxed">
+                        Equitable education empowering every citizen to apply AI responsibly. Positioning Kerala as a global model rooted in social responsibility, aiming for <strong>one lakh learners</strong> in phase one.
+                    </p>
+                </div>
+                <div class="glass-card p-8 rounded-3xl relative overflow-hidden group reveal delay-200">
+                    <div class="w-14 h-14 bg-ai-purple/20 rounded-2xl flex items-center justify-center mb-6 text-ai-purple shadow-[0_0_20px_rgba(192,132,252,0.2)] group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-wand-magic-sparkles text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold font-display mb-3 text-white">2. Creators, Not Just Consumers</h3>
+                    <p class="text-slate-400 leading-relaxed">
+                        Moving beyond passive usage. We are enabling Keralites to innovate, build, and shape AI-driven solutions that solve real-world local problems.
+                    </p>
+                </div>
+                <div class="glass-card p-8 rounded-3xl relative overflow-hidden group reveal delay-300">
+                    <div class="w-14 h-14 bg-green-500/20 rounded-2xl flex items-center justify-center mb-6 text-green-400 shadow-[0_0_20px_rgba(74,222,128,0.2)] group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-seedling text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold font-display mb-3 text-white">3. Knowledge as a Public Good</h3>
+                    <p class="text-slate-400 leading-relaxed">
+                        Making AI accessible to all through open, grassroots-first, multilingual approaches. Every individual becomes both a learner and a teacher.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-24 relative">
+        <div class="absolute inset-0 transform -skew-y-3 bg-white/5 -z-10"></div>
+
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="glass-card p-10 md:p-16 rounded-[3rem] border-red-500/20 reveal">
+                <div class="flex flex-col md:flex-row gap-12 items-start">
+                    <div class="md:w-1/3">
+                         <span class="text-red-400 font-bold tracking-widest uppercase mb-4 block flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation"></i> The Reality Check
+                         </span>
+                        <h2 class="text-3xl md:text-4xl font-display font-bold mb-6">The Urgent Challenges We Face.</h2>
+                        <p class="text-slate-300">AI's rapid integration presents significant hurdles across society that we must address immediately.</p>
+                    </div>
+                    <div class="md:w-2/3 space-y-8">
+                        <div class="flex gap-5 items-start group">
+                            <div class="w-12 h-12 min-w-[3rem] bg-red-500/20 rounded-full flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                                <i class="fa-solid fa-user-graduate text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold mb-2">The Skills Gap</h3>
+                                <p class="text-slate-400">Students are graduating without understanding the technologies defining their future careers. Tomorrow's essential skills are missing today.</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-5 items-start group">
+                             <div class="w-12 h-12 min-w-[3rem] bg-red-500/20 rounded-full flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                                <i class="fa-solid fa-briefcase text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold mb-2">Workforce Disruption</h3>
+                                <p class="text-slate-400">Automation and AI increasingly replace traditional roles, drastically impacting professionals, especially freshers and service industry workers.</p>
+                            </div>
+                        </div>
+                         <div class="flex gap-5 items-start group">
+                             <div class="w-12 h-12 min-w-[3rem] bg-red-500/20 rounded-full flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                                <i class="fa-solid fa-shield-halved text-xl"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold mb-2">Bias, Misinformation & Scams</h3>
+                                <p class="text-slate-400">AI reflects biases and deepfakes blur truth. Elders especially face scams and exploitative content. Literacy is the only shield.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="approach" class="py-24 bg-ai-darker relative overflow-hidden">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-ai-purple/10 rounded-full blur-[150px] -z-10"></div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-5xl font-display font-bold">Our Approach</h2>
+                <p class="text-xl mt-4 gradient-text-purple font-medium">True learning engages the Head, Hand, and Heart.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+                <div class="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-ai-accent via-ai-purple to-pink-500 opacity-30 -z-10"></div>
+
+                <div class="glass-card p-8 rounded-[2.5rem] text-center relative group reveal overflow-hidden border-ai-accent/30 hover:border-ai-accent">
+                    <div class="absolute inset-0 bg-gradient-to-b from-ai-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="w-24 h-24 mx-auto bg-ai-accent/20 rounded-full flex items-center justify-center mb-8 text-ai-accent shadow-[0_0_30px_rgba(56,189,248,0.3)] group-hover:scale-110 transition-transform relative z-10">
+                        <i class="fa-solid fa-brain text-4xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold font-display mb-4">HEAD</h3>
+                    <p class="text-ai-accent font-bold mb-4 tracking-wider text-sm">(Understand)</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        Understand how AI works and why it matters in daily life. Grasp the concepts behind the magic.
+                    </p>
+                </div>
+
+                <div class="glass-card p-8 rounded-[2.5rem] text-center relative group reveal delay-100 overflow-hidden border-ai-purple/30 hover:border-ai-purple">
+                     <div class="absolute inset-0 bg-gradient-to-b from-ai-purple/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="w-24 h-24 mx-auto bg-ai-purple/20 rounded-full flex items-center justify-center mb-8 text-ai-purple shadow-[0_0_30px_rgba(192,132,252,0.3)] group-hover:scale-110 transition-transform relative z-10">
+                        <i class="fa-solid fa-hand text-4xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold font-display mb-4">HAND</h3>
+                     <p class="text-ai-purple font-bold mb-4 tracking-wider text-sm">(Build)</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        Build with AI tools, create projects, and solve problems that matter locally. Learn by doing.
+                    </p>
+                </div>
+
+                <div class="glass-card p-8 rounded-[2.5rem] text-center relative group reveal delay-200 overflow-hidden border-pink-500/30 hover:border-pink-500">
+                     <div class="absolute inset-0 bg-gradient-to-b from-pink-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="w-24 h-24 mx-auto bg-pink-500/20 rounded-full flex items-center justify-center mb-8 text-pink-400 shadow-[0_0_30px_rgba(244,114,182,0.3)] group-hover:scale-110 transition-transform relative z-10">
+                        <i class="fa-solid fa-heart text-4xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold font-display mb-4">HEART</h3>
+                     <p class="text-pink-400 font-bold mb-4 tracking-wider text-sm">(Create & Share)</p>
+                    <p class="text-slate-300 leading-relaxed">
+                        Share knowledge, mentor others, and shape a more inclusive AI future. Tech with empathy.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="targets" class="py-24 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-4xl font-display font-bold">Who We Are Engaging</h2>
+                <p class="text-slate-400 mt-4 text-lg">Tailored programs for every stage of life.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="glass-card p-8 rounded-3xl relative overflow-hidden group reveal delay-100 border-t-4 border-blue-400">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity rotate-12">
+                        <i class="fa-solid fa-rocket text-9xl"></i>
+                    </div>
+                    <div class="w-14 h-14 bg-blue-400/20 rounded-2xl flex items-center justify-center mb-6 text-blue-400">
+                        <i class="fa-solid fa-child-reaching text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold font-display mb-2">KuttyMakers</h3>
+                    <p class="text-blue-400 text-sm font-bold mb-4 tracking-wider">Ages 10-17</p>
+                    <p class="text-slate-300 text-sm leading-relaxed mb-6">
+                        Develop curiosity and familiarity with foundational AI concepts like pattern recognition and logic. Guiding them from consumers to creators.
+                    </p>
+                    <div class="border-t border-white/10 pt-4 mt-auto">
+                        <strong class="text-white block text-sm mb-2">How:</strong>
+                        <p class="text-slate-400 text-xs">Games, storybooks, hands-on tools like Teachable Machine & Scratch.</p>
+                    </div>
+                </div>
+
+                <div class="glass-card p-8 rounded-3xl relative overflow-hidden group reveal delay-200 border-t-4 border-ai-purple">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity rotate-12">
+                        <i class="fa-solid fa-layer-group text-9xl"></i>
+                    </div>
+                    <div class="w-14 h-14 bg-ai-purple/20 rounded-2xl flex items-center justify-center mb-6 text-ai-purple">
+                        <i class="fa-solid fa-user-astronaut text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold font-display mb-2">Young Makers</h3>
+                    <p class="text-ai-purple text-sm font-bold mb-4 tracking-wider">College & Early Professionals</p>
+                    <p class="text-slate-300 text-sm leading-relaxed mb-6">
+                        Problem-solving across disciplines, understanding fairness, and building AI solutions. Becoming innovators and decision-makers.
+                    </p>
+                    <div class="border-t border-white/10 pt-4 mt-auto">
+                        <strong class="text-white block text-sm mb-2">How:</strong>
+                        <p class="text-slate-400 text-xs">Study jams, hackathons, mentoring, building with Gen AI & LLMs.</p>
+                    </div>
+                </div>
+
+                <div class="glass-card p-8 rounded-3xl relative overflow-hidden group reveal delay-300 border-t-4 border-green-400">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity rotate-12">
+                        <i class="fa-solid fa-handshake-angle text-9xl"></i>
+                    </div>
+                    <div class="w-14 h-14 bg-green-400/20 rounded-2xl flex items-center justify-center mb-6 text-green-400">
+                        <i class="fa-solid fa-users-rays text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold font-display mb-2">Friends of the Movement</h3>
+                    <p class="text-green-400 text-sm font-bold mb-4 tracking-wider">Educators, Elderly, Community</p>
+                    <p class="text-slate-300 text-sm leading-relaxed mb-6">
+                        Understand practical applications and threats like misinformation. Crucial for societal adoption and policy.
+                    </p>
+                    <div class="border-t border-white/10 pt-4 mt-auto">
+                        <strong class="text-white block text-sm mb-2">How:</strong>
+                        <p class="text-slate-400 text-xs">Learning circles, public discussions, cross-industry demonstrations.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="partners" class="py-24 bg-ai-darker relative">
+         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-2 gap-16">
+                <div class="reveal">
+                    <h2 class="text-3xl md:text-5xl font-display font-bold mb-6">Partner With Us.</h2>
+                    <p class="text-lg text-slate-300 leading-relaxed mb-8">
+                        AI for Everyone is designed to be collaborative and inclusive. <strong>TinkerHub</strong> holds space for partners and communities to lead, learn, and build together.
+                    </p>
+                    <div class="glass-card p-8 rounded-3xl border-ai-accent/20">
+                         <h3 class="text-xl font-bold font-display mb-6 flex items-center gap-3">
+                            <i class="fa-solid fa-bolt text-ai-accent"></i> How You Can Act
+                        </h3>
+                        <ul class="space-y-4">
+                            <li class="flex items-start gap-3">
+                                <i class="fa-solid fa-check text-green-400 mt-1"></i>
+                                <span class="text-slate-300"><strong>Host Learning Programs:</strong> Facilitate workshops or demo days.</span>
+                            </li>
+                             <li class="flex items-start gap-3">
+                                <i class="fa-solid fa-check text-green-400 mt-1"></i>
+                                <span class="text-slate-300"><strong>Volunteer & Mentor:</strong> Share expertise and guide learners.</span>
+                            </li>
+                             <li class="flex items-start gap-3">
+                                <i class="fa-solid fa-check text-green-400 mt-1"></i>
+                                <span class="text-slate-300"><strong>Sponsor:</strong> Fund toolkits, resources, and scaling.</span>
+                            </li>
+                             <li class="flex items-start gap-3">
+                                <i class="fa-solid fa-check text-green-400 mt-1"></i>
+                                <span class="text-slate-300"><strong>Open Doors:</strong> Invite your community to participate.</span>
+                            </li>
+                        </ul>
+                        <div class="mt-8">
+                            <a href="#" class="w-full py-4 rounded-xl bg-ai-accent text-ai-base font-bold flex items-center justify-center gap-2 hover:bg-white transition-colors">
+                                Become a Partner <i class="fa-solid fa-handshake"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 content-start reveal delay-200">
+                    <div class="glass-card p-6 rounded-2xl hover:border-ai-purple/50 transition-all group">
+                        <i class="fa-solid fa-brain text-3xl text-ai-purple mb-4 group-hover:scale-110 transition-transform block"></i>
+                        <h4 class="font-bold text-lg mb-2">Knowledge Partners</h4>
+                        <p class="text-slate-400 text-sm">Tech expertise, mentorship, content, and curriculum design.</p>
+                    </div>
+                     <div class="glass-card p-6 rounded-2xl hover;border-green-400/50 transition-all group">
+                        <i class="fa-solid fa-coins text-3xl text-green-400 mb-4 group-hover:scale-110 transition-transform block"></i>
+                        <h4 class="font-bold text-lg mb-2">Financial Partners</h4>
+                        <p class="text-slate-400 text-sm">Sponsor operations, scaling, materials, and kits.</p>
+                    </div>
+                     <div class="glass-card p-6 rounded-2xl hover:border-blue-400/50 transition-all group">
+                        <i class="fa-solid fa-bullhorn text-3xl text-blue-400 mb-4 group-hover:scale-110 transition-transform block"></i>
+                        <h4 class="font-bold text-lg mb-2">Media & Outreach</h4>
+                        <p class="text-slate-400 text-sm">Amplify reach through media coverage, social media, and stories.</p>
+                    </div>
+                     <div class="glass-card p-6 rounded-2xl hover;border-orange-400/50 transition-all group">
+                        <i class="fa-solid fa-screwdriver-wrench text-3xl text-orange-400 mb-4 group-hover:scale-110 transition-transform block"></i>
+                        <h4 class="font-bold text-lg mb-2">Resource Partners</h4>
+                        <p class="text-slate-400 text-sm">Provide hardware, software tools, learning materials, and venue space.</p>
+                    </div>
+                    <div class="glass-card p-6 rounded-2xl hover;border-pink-400/50 transition-all group sm:col-span-2">
+                        <div class="flex items-center gap-4 mb-4">
+                             <i class="fa-solid fa-people-roof text-3xl text-pink-400 group-hover:scale-110 transition-transform"></i>
+                             <h4 class="font-bold text-lg">Community Partners</h4>
+                        </div>
+                        <p class="text-slate-400 text-sm">Schools, NGOs, libraries, Kudumbashree, and individuals hosting learning circles on the ground.</p>
+                    </div>
+                </div>
+            </div>
+         </div>
+    </section>
+
+    <section class="py-32 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-t from-ai-darker via-transparent to-transparent -z-10"></div>
+        <i class="fa-solid fa-quote-right text-[20rem] text-white/5 absolute bottom-0 right-10 -z-20 rotate-12"></i>
+
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center reveal">
+            <h2 class="text-3xl md:text-5xl font-display font-bold leading-tight mb-12">
+                “AI will shape the future of work, culture, and communities. Kerala can either be a consumer or a creator. <span class="gradient-text">With your partnership, we can ensure every Keralite learns, builds, and creates responsibly with AI.</span>”
+            </h2>
+            <p class="text-xl text-ai-accent font-medium tracking-wider uppercase">
+                This is our chance to set a global model again.
+            </p>
+        </div>
+    </section>
+
+    <button id="game-trigger-btn" class="w-16 h-16 rounded-full flex items-center justify-center text-ai-accent transition-all duration-300 group">
+        <i class="fa-solid fa-gamepad text-3xl group-hover:rotate-12 transition-transform"></i>
+    </button>
+    <div id="game-overlay">
+        
+        <div id="arcade-menu" class="game-container active">
+            <h2 class="text-4xl font-display font-bold mb-2 gradient-text">AI ARCADE</h2>
+            <p class="text-slate-400 mb-6 text-sm">Select a simulation to begin training.</p>
+            
+            <button onclick="GameSystem.switch('neural')" class="arcade-btn group">
+                <div class="w-10 h-10 rounded-lg bg-ai-accent/20 flex items-center justify-center text-ai-accent"><i class="fa-solid fa-bolt"></i></div>
+                <div>
+                    <div class="text-white group-hover:text-ai-accent transition-colors">Neural Dash</div>
+                    <div class="text-xs text-slate-500">Collect Data • Avoid Bugs</div>
+                </div>
+            </button>
+
+            <button onclick="GameSystem.switch('scramble')" class="arcade-btn group">
+                <div class="w-10 h-10 rounded-lg bg-green-400/20 flex items-center justify-center text-green-400"><i class="fa-solid fa-font"></i></div>
+                <div>
+                    <div class="text-white group-hover:text-green-400 transition-colors">Alpha-Code Scramble</div>
+                    <div class="text-xs text-slate-500">Word Puzzle • AI Terms</div>
+                </div>
+            </button>
+
+            <button onclick="GameSystem.switch('tictactoe')" class="arcade-btn group">
+                <div class="w-10 h-10 rounded-lg bg-ai-purple/20 flex items-center justify-center text-ai-purple"><i class="fa-solid fa-table-cells"></i></div>
+                <div>
+                    <div class="text-white group-hover:text-ai-purple transition-colors">Logic Grid</div>
+                    <div class="text-xs text-slate-500">Strategy • User vs AI</div>
+                </div>
+            </button>
+
+            <button onclick="GameSystem.switch('story')" class="arcade-btn group">
+                <div class="w-10 h-10 rounded-lg bg-yellow-400/20 flex items-center justify-center text-yellow-400"><i class="fa-solid fa-book-open-reader"></i></div>
+                <div>
+                    <div class="text-white group-hover:text-yellow-400 transition-colors">Ethical Dilemma</div>
+                    <div class="text-xs text-slate-500">Story • Make Choices</div>
+                </div>
+            </button>
+
+            <button onclick="GameSystem.switch('cube')" class="arcade-btn group">
+                <div class="w-10 h-10 rounded-lg bg-red-400/20 flex items-center justify-center text-red-400"><i class="fa-solid fa-cube"></i></div>
+                <div>
+                    <div class="text-white group-hover:text-red-400 transition-colors">Cyber Cube</div>
+                    <div class="text-xs text-slate-500">3D • Pattern Match</div>
+                </div>
+            </button>
+
+            <button id="close-arcade-btn" class="mt-4 text-slate-500 hover:text-white text-sm underline w-full text-center">Return to Website</button>
+        </div>
+
+        <div id="game-neural" class="game-container">
+            <div id="nd-start" class="glass-panel text-center">
+                <h2 class="text-3xl font-display font-bold mb-2 text-ai-accent">NEURAL DASH</h2>
+                <div class="mb-4 inline-block bg-ai-gold/10 border border-ai-gold/30 px-3 py-1 rounded-full">
+                     <span class="text-ai-gold text-sm font-bold">🏆 Best: <span id="nd-highscore-start">0</span></span>
+                </div>
+                <div class="text-left text-sm mb-6 space-y-2 bg-black/20 p-4 rounded-lg">
+                    <p class="text-xs text-slate-400 mb-2"><i class="fa-solid fa-mobile-screen-button"></i> Mobile: Touch & Drag to catch</p>
+                    <p><span class="text-ai-accent">●</span> Blue = Valid Data (+10)</p>
+                    <p><span class="text-ai-gold">●</span> Gold = Insight (+50)</p>
+                    <p><span class="text-red-500">●</span> Red = Hallucination (-20)</p>
+                </div>
+                <button onclick="NeuralDash.start()" class="w-full py-4 bg-ai-accent text-ai-darker font-bold rounded-xl text-lg mb-2 shadow-[0_0_15px_#38bdf8]">INITIALIZE</button>
+                <button onclick="GameSystem.menu()" class="text-slate-500 text-sm py-2">Back to Menu</button>
+            </div>
+            <div id="nd-hud" class="hidden fixed top-4 left-4 right-4 flex justify-between pointer-events-none z-[1002]">
+                <div class="bg-black/80 backdrop-blur px-4 py-2 rounded-xl border border-ai-accent/30 text-ai-accent font-bold font-mono text-xl shadow-lg"><span id="nd-score">0</span> pts</div>
+                <div class="bg-black/80 backdrop-blur px-4 py-2 rounded-xl border border-white/20 text-white font-bold font-mono text-xl shadow-lg"><span id="nd-time">30</span> s</div>
+            </div>
+             <div id="nd-gameover" class="hidden glass-panel text-center">
+                <h2 class="text-3xl font-bold mb-2">COMPLETE</h2>
+                <div id="nd-new-record" class="hidden mb-2 animate-bounce"><span class="bg-ai-gold text-black px-3 py-1 rounded-full text-xs font-bold">NEW RECORD! 🏆</span></div>
+                <p class="text-slate-400 mb-2">Final Accuracy</p>
+                <div class="text-6xl font-bold text-white mb-2 gradient-text" id="nd-final-score">0</div>
+                <p class="text-slate-500 text-sm mb-6">Best Score: <span id="nd-highscore-end" class="text-white">0</span></p>
+                <button onclick="NeuralDash.start()" class="w-full py-3 bg-ai-purple text-white font-bold rounded-xl mb-2">RETRY</button>
+                <button onclick="GameSystem.menu()" class="w-full py-3 border border-white/20 text-white rounded-xl">EXIT</button>
+             </div>
+        </div>
+
+        <div id="game-scramble" class="game-container">
+            <h2 class="text-3xl font-display font-bold mb-4 text-green-400">ALPHA SCRAMBLE</h2>
+            <div class="glass-panel">
+                <p class="text-slate-400 mb-2 text-sm">Decode the Terminology.</p>
+                <div id="scramble-hint" class="text-xs text-ai-accent mb-4">Hint: ...</div>
+                <div id="scramble-word" class="text-4xl font-mono font-bold text-white mb-6 tracking-widest bg-black/30 py-4 rounded-lg">...</div>
+                <input type="text" id="scramble-input" placeholder="TYPE ANSWER" class="w-full bg-black/50 border border-white/20 rounded-lg p-3 text-center text-white mb-4 uppercase focus:outline-none focus:border-green-400 font-mono text-xl">
+                <p id="scramble-msg" class="h-6 text-sm font-bold mb-2"></p>
+                <button onclick="ScrambleGame.check()" class="w-full py-3 bg-green-500 text-black font-bold rounded-xl shadow-[0_0_15px_rgba(74,222,128,0.3)]">DECODE</button>
+            </div>
+            <button onclick="GameSystem.menu()" class="text-slate-500 py-4">Back to Menu</button>
+        </div>
+
+        <div id="game-tictactoe" class="game-container">
+            <h2 class="text-3xl font-display font-bold mb-4 text-ai-purple">LOGIC GRID</h2>
+            <div class="glass-panel">
+                <div class="flex justify-between mb-4 text-sm font-bold text-slate-300 px-4">
+                    <span class="text-ai-accent">YOU (X)</span>
+                    <span id="ttt-status" class="bg-white/10 px-2 rounded">VS</span>
+                    <span class="text-ai-purple">AI (O)</span>
+                </div>
+                <div class="ttt-grid" id="ttt-board"></div>
+                <button onclick="TicTacToe.reset()" class="mt-6 w-full py-3 border border-white/20 rounded-lg hover:bg-white/10 font-bold">RESET GRID</button>
+            </div>
+            <button onclick="GameSystem.menu()" class="text-slate-500 py-4">Back to Menu</button>
+        </div>
+
+        <div id="game-story" class="game-container">
+            <h2 class="text-3xl font-display font-bold mb-4 text-yellow-400">ETHICAL DILEMMA</h2>
+            <div class="glass-panel text-left min-h-[300px] flex flex-col justify-between">
+                <div id="story-text" class="text-lg text-slate-200 mb-6 leading-relaxed">Loading...</div>
+                <div id="story-options" class="space-y-3"></div>
+            </div>
+            <button onclick="GameSystem.menu()" class="text-slate-500 mt-4 py-4">Back to Menu</button>
+        </div>
+
+        <div id="game-cube" class="game-container">
+            <h2 class="text-3xl font-display font-bold mb-2 text-red-400">CYBER CUBE</h2>
+            <p class="text-xs text-slate-400 mb-4">Swipe to find the target.</p>
+            
+            <div class="scene">
+                <div class="cube" id="cube">
+                    <div class="cube-face front text-ai-accent border-ai-accent bg-ai-accent/10"></div>
+                    <div class="cube-face back text-ai-purple border-ai-purple bg-ai-purple/10"></div>
+                    <div class="cube-face right text-green-400 border-green-400 bg-green-400/10"></div>
+                    <div class="cube-face left text-yellow-400 border-yellow-400 bg-yellow-400/10"></div>
+                    <div class="cube-face top text-red-400 border-red-400 bg-red-400/10"></div>
+                    <div class="cube-face bottom text-white border-white bg-white/10"></div>
+                </div>
+            </div>
+            
+            <div class="mt-8 glass-panel">
+                <p class="mb-4 text-slate-300">Target Protocol: <span id="cube-target" class="font-bold text-white bg-red-500 px-2 rounded">AI</span></p>
+                <div class="grid grid-cols-3 gap-2 max-w-[150px] mx-auto md:grid hidden">
+                    <div></div><button onclick="CubeGame.rotate(0, -1)" class="bg-white/10 p-3 rounded active:bg-white/30"><i class="fa-solid fa-arrow-up"></i></button><div></div>
+                    <button onclick="CubeGame.rotate(-1, 0)" class="bg-white/10 p-3 rounded active:bg-white/30"><i class="fa-solid fa-arrow-left"></i></button>
+                    <button onclick="CubeGame.check()" class="bg-red-500 p-3 rounded text-white font-bold">OK</button>
+                    <button onclick="CubeGame.rotate(1, 0)" class="bg-white/10 p-3 rounded active:bg-white/30"><i class="fa-solid fa-arrow-right"></i></button>
+                    <div></div><button onclick="CubeGame.rotate(0, 1)" class="bg-white/10 p-3 rounded active:bg-white/30"><i class="fa-solid fa-arrow-down"></i></button><div></div>
+                </div>
+                <p class="md:hidden text-xs text-slate-500 animate-pulse mb-4">Touch & Drag Cube to Rotate</p>
+                <button onclick="CubeGame.check()" class="md:hidden w-full bg-red-500 py-3 rounded-lg text-white font-bold shadow-lg">CONFIRM MATCH</button>
+            </div>
+            <button onclick="GameSystem.menu()" class="text-slate-500 py-4">Back to Menu</button>
+        </div>
+
+    </div>
+    <footer class="py-12 bg-ai-darker border-t border-white/5 text-center">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="mb-8 flex justify-center items-center gap-4">
+                <a href="https://github.com/Godsonmd" target="_blank" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-ai-accent hover:text-ai-base transition-all"><i class="fa-brands fa-github"></i></a>
+                <a href="https://www.linkedin.com/in/godsonin/" target="_blank" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-ai-purple hover:text-ai-base transition-all"><i class="fa-brands fa-linkedin-in"></i></a>
+                <a href="https://www.instagram.com/godson.in_?igsh=MXB4dW9vYm0ybDhkbw==" target="_blank" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-pink-500 hover:text-ai-base transition-all"><i class="fa-brands fa-instagram"></i></a>
+            </div>
+            <p class="text-slate-500 text-sm mb-4">
+                An initiative enabled by <strong>TinkerHub</strong>.
+            </p>
+            <p class="text-slate-600 text-sm">
+                &copy; 2025 AI For Everyone Campaign. Built with <i class="fa-solid fa-heart text-red-500 animate-pulse"></i> for Kerala.
+            </p>
+        </div>
+    </footer>
+
+    <!-- ==========================
+         OPTIMIZED CANVAS SCRIPT
+         ========================== -->
+    <script>
+    (function () {
+        const canvas = document.getElementById('neural-canvas');
+        const ctx = canvas.getContext('2d', { alpha: true });
+        const cursorParticle = document.getElementById('cursor-particle');
+        const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
+        if(isMobile)
+        cursorParticle.style.display="none";
+        let width = 0, height = 0;
+        let particles = [];
+        let trail = [];
+        let animationId = null;
+        let visible = true;
+
+        // Performance-tuned params
+        let PARTICLE_COUNT = window.innerWidth < 768 ? 400 : 1000; 
+        const CONNECTION_DISTANCE = 110;
+        const MOUSE_DISTANCE = 120;
+        let TRAIL_LENGTH = window.innerWidth < 768 ? 8 : 12;
+        const CELL_SIZE = CONNECTION_DISTANCE;
+
+        // debounce resize
+        let resizeTimeout = null;
+        function resize() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+                if (window.innerWidth > 2000) PARTICLE_COUNT = Math.min(280, Math.floor(window.innerWidth / 8));
+                initParticles();
+            }, 120);
+        }
+        window.addEventListener('resize', resize);
+
+        // Pause when tab hidden
+        document.addEventListener('visibilitychange', () => {
+            visible = !document.hidden;
+            if (visible) start(); else stop();
+        });
+
+        // pointer handling
+        let mouse = { x: null, y: null };
+        function onPointerMove(e) {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            cursorParticle.style.transform = `translate(${e.clientX -10}px, ${e.clientY -10}px)`;
+            cursorParticle.style.opacity = '1';
+        }
+        function onPointerLeave() {
+            mouse.x = null; mouse.y = null;
+            cursorParticle.style.opacity = '0';
+        }
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
+        window.addEventListener('pointerdown', (e) => createClickRipple(e.clientX, e.clientY), { passive: true });
+        window.addEventListener('pointerleave', onPointerLeave, { passive: true });
+
+        function createClickRipple(x, y) {
+            const ripple = document.createElement('div');
+            ripple.className = 'click-ripple';
+            ripple.style.left = x + 'px';
+            ripple.style.top = y + 'px';
+            document.body.appendChild(ripple);
+            setTimeout(() => { if (ripple.parentNode) ripple.remove(); }, 700);
+        }
+
+        class Particle {
+            constructor() { this.reset(true); }
+            reset(init=false) {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * (init ? 1.2 : 1.6);
+                this.vy = (Math.random() - 0.5) * (init ? 1.2 : 1.6);
+                this.size = Math.random() * 1.5 + 0.6;
+                this.baseSize = this.size;
+                this.active = true;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                if (this.x < -20) this.x = width + 20;
+                if (this.x > width + 20) this.x = -20;
+                if (this.y < -20) this.y = height + 20;
+                if (this.y > height + 20) this.y = -20;
+                if (this.size > this.baseSize) this.size = Math.max(this.baseSize, this.size - 0.08);
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles.length = 0;
+            for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
+        }
+
+        function buildGrid() {
+            const cols = Math.ceil(width / CELL_SIZE);
+            const rows = Math.ceil(height / CELL_SIZE);
+            const grid = new Array(cols * rows);
+            for (let i = 0; i < grid.length; i++) grid[i] = [];
+            particles.forEach((p, idx) => {
+                const cx = Math.floor(p.x / CELL_SIZE);
+                const cy = Math.floor(p.y / CELL_SIZE);
+                if (cx >= 0 && cy >= 0 && cx < cols && cy < rows) grid[cx + cy * cols].push(idx);
+            });
+            return { grid, cols, rows };
+        }
+
+        function animate() {
+    if (!visible) return;
+    ctx.clearRect(0, 0, width, height);
+
+    // 1) TRAIL HANDLING (unchanged)
+    if (mouse.x != null && mouse.y != null) {
+        trail.push({ x: mouse.x, y: mouse.y });
+        if (trail.length > TRAIL_LENGTH) trail.shift();
+    } else if (trail.length > 0) {
+        trail.shift();
+    }
+
+    // draw trail (simple polyline with gradient)
+    if (trail.length > 1) {
+        ctx.save();
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        const start = trail[0], end = trail[trail.length - 1];
+        const grad = ctx.createLinearGradient(start.x, start.y, end.x, end.y);
+        grad.addColorStop(0, "rgba(56,189,248,0)");
+        grad.addColorStop(1, "rgba(56,189,248,0.85)");
+        ctx.strokeStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        for (let i = 1; i < trail.length; i++) ctx.lineTo(trail[i].x, trail[i].y);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.lineWidth = 0.6;
+
+    // Precompute a "connection target" from the trail: prefer a point slightly behind the cursor
+    const trailTarget = (trail.length >= 4) ? trail[trail.length - 4] : (trail.length ? trail[trail.length - 1] : null);
+
+    // 2) Build spatial grid for neighbor checks (same as before)
+    const { grid, cols, rows } = buildGrid();
+
+    // 3) Iterate particles and handle mouse-particle connections efficiently
+    for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        p.update();
+
+        // MOUSE-TO-PARTICLE CONNECTION + gentle physics push (cost: O(n) per frame)
+        if (mouse.x != null && mouse.y != null) {
+            const dxm = mouse.x - p.x;
+            const dym = mouse.y - p.y;
+            const distm = Math.hypot(dxm, dym);
+
+            if (distm < MOUSE_DISTANCE && distm > 0.1) {
+                // gentle push away (small multiplier to keep motion natural)
+                const force = (MOUSE_DISTANCE - distm) / MOUSE_DISTANCE * 0.6;
+                p.x -= (dxm / distm) * force * (Math.random() * 0.6 + 50);
+                p.y -= (dym / distm) * force * (Math.random() * 0.6 + 50);
+
+                // transient "energize" when very close
+                if (distm < 50 && p.size < 4) p.size = 4;
+
+                // DRAW connection to the trail target (or to cursor if trail absent)
+                const connTarget = trailTarget || { x: mouse.x, y: mouse.y };
+
+                // brightness falls off with distance (but we clamp alpha so lines are visible)
+                const alpha = Math.min(1, Math.max(0.08, 2 - distm / MOUSE_DISTANCE));
+                ctx.beginPath();
+                // slightly thicker for cursor connections
+                ctx.lineWidth = 1.2;
+                // use cyan -> white fade by interpolating rgba; simple approach:
+                ctx.strokeStyle = `rgba(56,189,248,${alpha})`;
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(connTarget.x, connTarget.y);
+                ctx.stroke();
+
+                // small glow dot at connection midpoint for extra punch (cheap)
+                const midX = (p.x + connTarget.x) / 2;
+                const midY = (p.y + connTarget.y) / 2;
+                ctx.beginPath();
+                ctx.arc(midX, midY, Math.min(2.2, Math.max(0.8, (50 - distm) / 30)), 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(56,189,248,${alpha * 0.9})`;
+                ctx.fill();
+                ctx.lineWidth = 0.6;
+            }
+        }
+
+        // Draw the particle itself
+        p.draw();
+
+        // 4) PARTICLE-TO-PARTICLE CONNECTIONS using spatial grid (keeps O(n) behavior)
+        const cx = Math.floor(p.x / CELL_SIZE);
+        const cy = Math.floor(p.y / CELL_SIZE);
+        for (let nx = Math.max(0, cx - 1); nx <= Math.min(cols - 1, cx + 1); nx++) {
+            for (let ny = Math.max(0, cy - 1); ny <= Math.min(rows - 1, cy + 1); ny++) {
+                const bucket = grid[nx + ny * cols];
+                if (!bucket || bucket.length === 0) continue;
+                // limit neighbor checks to reduce CPU
+                for (let k = 0, checked = 0; k < bucket.length && checked < 6; k++, checked++) {
+                    const j = bucket[k];
+                    if (j === i) continue;
+                    const p2 = particles[j];
+                    const dx = p.x - p2.x, dy = p.y - p2.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < CONNECTION_DISTANCE) {
+                        const alpha = Math.max(0.03, 0.6 - dist / CONNECTION_DISTANCE);
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(56,189,248,${alpha})`;
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+    }
+
+    // 5) Render the NeuralDash overlay on top if running
+    if (typeof NeuralDash !== 'undefined' && NeuralDash.isRunning) {
+        NeuralDash.render(ctx);
+    }
+
+    // next frame
+    animationId = requestAnimationFrame(animate);
+}
+
+
+        function start() {
+            if (animationId) return;
+            animationId = requestAnimationFrame(animate);
+        }
+        function stop() {
+            if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+        }
+
+        function init() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            PARTICLE_COUNT = window.innerWidth < 768 ? 400 : 1000;
+            TRAIL_LENGTH = window.innerWidth < 768 ? 8 : 12;
+            initParticles();
+            start();
+        }
+
+        init();
+    })();
+    </script>
+
+    <!-- ==========================
+         ORIGINAL GAME + UI SCRIPTS (unchanged logic)
+         ========================== -->
+    <script>
+        const GameSystem = {
+            activeGame: null,
+            init: () => {
+                
+                document.getElementById('game-trigger-btn').addEventListener('click', () => {
+                    if (GameSystem.activeGame) GameSystem.close(); else GameSystem.switch('menu');
+                });
+                document.getElementById('close-arcade-btn').addEventListener('click', GameSystem.close);
+            },
+            switch: (gameId) => {
+                if (GameSystem.activeGame === 'neural') NeuralDash.stop();
+                document.querySelectorAll('.game-container').forEach(el => el.classList.remove('active'));
+                document.body.classList.remove('neural-active');
+                document.body.classList.add('game-locked');
+                document.getElementById('game-overlay').classList.add('active');
+
+                if (gameId === 'menu') {
+                    document.getElementById('arcade-menu').classList.add('active');
+                } else {
+                    document.getElementById('game-' + gameId).classList.add('active');
+                    if (gameId === 'neural') NeuralDash.menu();
+                    if (gameId === 'scramble') ScrambleGame.init();
+                    if (gameId === 'tictactoe') TicTacToe.reset();
+                    if (gameId === 'story') StoryGame.init();
+                    if (gameId === 'cube') CubeGame.init();
+                }
+                GameSystem.activeGame = gameId;
+            },
+            menu: () => GameSystem.switch('menu'),
+            close: () => {
+                document.getElementById('game-overlay').classList.remove('active');
+                document.body.classList.remove('game-locked', 'neural-active');
+                if (GameSystem.activeGame === 'neural') NeuralDash.stop();
+                GameSystem.activeGame = null;
+            }
+        };
+
+        // --- GAME 1: NEURAL DASH ---
+        const NeuralDash = {
+            isRunning: false, score: 0, highScore: 0, time: 30, timerInterval: null, gameParticles: [], spawnInterval: null, touchX: null, touchY: null,
+            menu: () => {
+                NeuralDash.highScore = localStorage.getItem('nd_highscore') || 0;
+                document.getElementById('nd-highscore-start').innerText = NeuralDash.highScore;
+                document.body.classList.add('neural-active');
+                document.getElementById('nd-start').classList.remove('hidden');
+                document.getElementById('nd-hud').classList.add('hidden');
+                document.getElementById('nd-gameover').classList.add('hidden');
+            },
+            start: () => {
+                NeuralDash.isRunning = true; NeuralDash.score = 0; NeuralDash.time = 30; NeuralDash.gameParticles = [];
+                document.getElementById('nd-start').classList.add('hidden');
+                document.getElementById('nd-gameover').classList.add('hidden');
+                document.getElementById('nd-hud').classList.remove('hidden');
+                document.getElementById('nd-score').innerText = '0';
+                document.getElementById('nd-new-record').classList.add('hidden');
+                
+                NeuralDash.timerInterval = setInterval(() => { NeuralDash.time--; document.getElementById('nd-time').innerText = NeuralDash.time; if(NeuralDash.time <= 0) NeuralDash.end(); }, 1000);
+                const isMobile = window.innerWidth < 768;
+                NeuralDash.spawnInterval = setInterval(() => {
+                    NeuralDash.gameParticles.push({ x: Math.random()*window.innerWidth, y: window.innerHeight+20, vx: (Math.random()-0.5)*3, vy: -Math.random()*3-2, type: Math.random()>0.8?'bad':(Math.random()>0.9?'gold':'good'), size: isMobile?25:15, active: true });
+                }, isMobile?500:350);
+                window.addEventListener('mousemove', NeuralDash.input); window.addEventListener('touchmove', NeuralDash.input, {passive:false}); window.addEventListener('touchstart', NeuralDash.input, {passive:false});
+            },
+            input: (e) => {
+                if(!NeuralDash.isRunning) return; if(e.type && e.type.startsWith && e.type.startsWith('touch')) e.preventDefault();
+                if(e.touches) { NeuralDash.touchX = e.touches[0].clientX; NeuralDash.touchY = e.touches[0].clientY; } else { NeuralDash.touchX = e.clientX; NeuralDash.touchY = e.clientY; }
+            },
+            render: (ctx) => {
+                ctx.save();
+                ctx.globalAlpha = 1;
+                if (NeuralDash.touchX != null) { ctx.beginPath(); ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=2; ctx.arc(NeuralDash.touchX, NeuralDash.touchY, 40, 0, Math.PI*2); ctx.stroke(); }
+                NeuralDash.gameParticles.forEach(p => {
+                    if(!p.active) return; p.x += p.vx; p.y += p.vy; if(p.y < -50) p.active = false;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fillStyle = p.type==='good'?'#38bdf8':(p.type==='gold'?'#fbbf24':'#ef4444'); ctx.shadowBlur=10; ctx.shadowColor=ctx.fillStyle; ctx.fill(); ctx.shadowBlur=0;
+                    if (NeuralDash.touchX != null) {
+                        const dx = NeuralDash.touchX - p.x; const dy = NeuralDash.touchY - p.y; const hitRadius = window.innerWidth < 768 ? 80 : 50;
+                        if(Math.sqrt(dx*dx + dy*dy) < hitRadius) {
+                            p.active = false; NeuralDash.score += p.type==='good'?10:(p.type==='gold'?50:-20); document.getElementById('nd-score').innerText = NeuralDash.score;
+                            ctx.beginPath(); ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 3; ctx.arc(p.x, p.y, p.size*2, 0, Math.PI*2); ctx.stroke();
+                        }
+                    }
+                });
+                ctx.restore();
+            },
+            end: () => {
+                NeuralDash.stop(); document.getElementById('nd-hud').classList.add('hidden'); document.getElementById('nd-gameover').classList.remove('hidden'); document.getElementById('nd-final-score').innerText = NeuralDash.score;
+                if(NeuralDash.score > NeuralDash.highScore) { NeuralDash.highScore = NeuralDash.score; localStorage.setItem('nd_highscore', NeuralDash.highScore); document.getElementById('nd-new-record').classList.remove('hidden'); }
+                document.getElementById('nd-highscore-end').innerText = NeuralDash.highScore;
+            },
+            stop: () => { NeuralDash.isRunning = false; clearInterval(NeuralDash.timerInterval); clearInterval(NeuralDash.spawnInterval); window.removeEventListener('mousemove', NeuralDash.input); window.removeEventListener('touchmove', NeuralDash.input); window.removeEventListener('touchstart', NeuralDash.input); NeuralDash.touchX = null; }
+        };
+
+        // --- GAME 2: SCRAMBLE ---
+        const ScrambleGame = {
+            data: [
+ {w:"ENCRYPT", h:"Scramble data for safety"},
+ {w:"SYNTAX", h:"Rules of writing code"},
+ {w:"QUANTUM", h:"Physics at tiny scales"},
+ {w:"PROTOCOL", h:"Rules for communication"},
+ {w:"ANALYTICS", h:"Insights from data"},
+ {w:"ITERATE", h:"Repeat to improve"},
+ {w:"VECTOR", h:"Has direction and magnitude"},
+ {w:"MATRIX", h:"Grid of numbers"},
+ {w:"CACHE", h:"Fast temporary storage"},
+ {w:"DEBUG", h:"Fixing code errors"},
+ {w:"SCRIPT", h:"Small program"},
+ {w:"COMPILE", h:"Convert code to machine form"},
+ {w:"BANDWIDTH", h:"Internet data capacity"},
+ {w:"LATENCY", h:"Delay in response"},
+ {w:"PIXEL", h:"Smallest image unit"},
+ {w:"FIREWALL", h:"Network protection"},
+ {w:"ALERT", h:"A warning"},
+ {w:"METADATA", h:"Data about data"},
+ {w:"BIOLOGY", h:"Study of life"},
+ {w:"GRAVITY", h:"Force pulling things down"},
+ {w:"ORBIT", h:"Path around a planet"},
+ {w:"CARBON", h:"Element in all living things"},
+ {w:"CHEMICAL", h:"A substance with a formula"},
+ {w:"ENERGY", h:"Ability to do work"},
+ {w:"GENETIC", h:"DNA related"},
+ {w:"TERRAIN", h:"Land surface type"},
+ {w:"CLIMATE", h:"Long-term weather"},
+ {w:"ECLIPSE", h:"Shadow over the Sun or Moon"},
+ {w:"MAGNETIC", h:"Attracted to metal"},
+ {w:"VELOCITY", h:"Speed with direction"},
+ {w:"FRICTION", h:"Resistance between surfaces"},
+ {w:"INERTIA", h:"Resistance to change"},
+ {w:"PLASMA", h:"Ionized gas"},
+ {w:"SATELLITE", h:"Object orbiting Earth"},
+ {w:"GALAXY", h:"Group of billions of stars"},
+ {w:"ASTEROID", h:"Rock in space"},
+ {w:"ELEMENT", h:"Basic chemical unit"},
+ {w:"CIRCUIT", h:"Electrical loop"},
+ {w:"MODULE", h:"Self-contained component"},
+ {w:"SPECTRUM", h:"Range of colors or signals"},
+ {w:"TURBINE", h:"Rotating engine"},
+ {w:"PROCESSOR", h:"Chip that computes"},
+ {w:"DATABASE", h:"Structured information store"},
+ {w:"ALLOY", h:"Metal mixture"},
+ {w:"REACTOR", h:"Machine for nuclear energy"},
+ {w:"MOMENTUM", h:"Mass times velocity"},
+ {w:"SYMBOLIC", h:"Represented by symbols"},
+ {w:"ABSTRACT", h:"Not concrete"},
+ {w:"OPTICAL", h:"Related to light"},
+ {w:"THERMAL", h:"Related to heat"},
+ {w:"SENSORY", h:"Related to senses"},
+ {w:"ANOMALY", h:"Something unusual"}
+],
+            current: null,
+            init: () => { ScrambleGame.current = ScrambleGame.data[Math.floor(Math.random()*ScrambleGame.data.length)]; document.getElementById('scramble-hint').innerText = "Hint: "+ScrambleGame.current.h; document.getElementById('scramble-word').innerText = ScrambleGame.current.w.split('').sort(()=>0.5-Math.random()).join(''); document.getElementById('scramble-input').value = ""; document.getElementById('scramble-msg').innerText = ""; },
+            check: () => { if(document.getElementById('scramble-input').value.toUpperCase() === ScrambleGame.current.w) { document.getElementById('scramble-msg').innerText = "SUCCESS!"; document.getElementById('scramble-msg').style.color = "#4ade80"; setTimeout(ScrambleGame.init, 1500); } else { document.getElementById('scramble-msg').innerText = "TRY AGAIN"; document.getElementById('scramble-msg').style.color = "#ef4444"; } }
+        };
+
+        // --- GAME 3: TIC TAC TOE ---
+        const TicTacToe = {
+            board: [], active: true,
+            reset: () => { TicTacToe.board = Array(9).fill(null); TicTacToe.active = true; document.getElementById('ttt-status').innerText = "VS"; TicTacToe.render(); },
+            render: () => { const grid = document.getElementById('ttt-board'); grid.innerHTML = ''; TicTacToe.board.forEach((c, i) => { const el = document.createElement('div'); el.className = `ttt-cell ${c?c.toLowerCase():''}`; el.innerText = c||''; el.onclick = () => TicTacToe.move(i); grid.appendChild(el); }); },
+            move: (i) => { if(!TicTacToe.active || TicTacToe.board[i]) return; TicTacToe.board[i] = 'X'; TicTacToe.render(); if(TicTacToe.checkWin('X')) return TicTacToe.end('YOU WIN!'); if(!TicTacToe.board.includes(null)) return TicTacToe.end('DRAW'); setTimeout(() => { if(!TicTacToe.active) return; const empty = TicTacToe.board.map((v,k)=>v===null?k:null).filter(v=>v!==null); if(empty.length) { TicTacToe.board[empty[Math.floor(Math.random()*empty.length)]] = 'O'; TicTacToe.render(); if(TicTacToe.checkWin('O')) TicTacToe.end('AI WINS'); else if(!TicTacToe.board.includes(null)) TicTacToe.end('DRAW'); } }, 400); },
+            checkWin: (p) => [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(c => TicTacToe.board[c[0]]===p && TicTacToe.board[c[1]]===p && TicTacToe.board[c[2]]===p),
+            end: (msg) => { TicTacToe.active = false; document.getElementById('ttt-status').innerText = msg; }
+        };
+
+        // --- GAME 4: STORY (6 SCENARIOS) ---
+        const StoryGame = {
+            scenarios: [
+    'crime_start',
+    'hiring_start',
+    'car_start',
+    'fake_start',
+    'credit_start',
+    'medical_start',
+    'drone_start',
+    'exam_start',
+    'dorm_start',
+    'food_start',
+    'robot_start',
+    'privacy_start',
+    'speech_start',
+    'grades_start',
+    'energy_start',
+    'camera_start'
+],
+
+nodes: {
+
+    /* --- YOUR ORIGINAL STORIES (JOKE VERSION) --- */
+
+    crime_start: {  
+        t: "AI predicts crime in a neighborhood… mostly because it saw a squirrel run suspiciously fast.", 
+        opts: [{t:"Trust The Squirrel Data", n:"crime_fail"}, {t:"Check If AI Is Sleep-Deprived", n:"crime_audit"}] 
+    },
+    crime_fail: {  
+        t: "AI accused half the neighborhood of 'looking shady'. Project yeeted.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+    crime_audit: {  
+        t: "You discover the AI learned from 1993 police reports. Even Windows 95 is newer.", 
+        opts: [{t:"Fix Data", n:"crime_win"}, {t:"Ignore Like A Procrastinator", n:"crime_fail"}] 
+    },
+    crime_win: {  
+        t: "AI finally stops accusing joggers of being criminals. Community cheers.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    hiring_start: {  
+        t: "Resume AI rejects anyone who doesn’t list 'Ninja' in their skills.", 
+        opts: [{t:"Remove Gender Label", n:"hiring_proxy"}, {t:"Feed It Real Resumes", n:"hiring_win"}] 
+    },
+    hiring_proxy: {  
+        t: "AI still assumes 'Women's Chess Club' means 'boss fight'. Not ideal.", 
+        opts: [{t:"Try Again", n:"hiring_start"}] 
+    },
+    hiring_win: {  
+        t: "AI stops being weird and starts hiring actual humans. Progress!", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    car_start: {  
+        t: "Self-driving car faces moral dilemma: Save passenger or pedestrian? Meanwhile it just wants a nap.", 
+        opts: [{t:"Save Passenger", n:"car_sales"}, {t:"Do The Ethical Thing", n:"car_ethical"}] 
+    },
+    car_sales: {  
+        t: "Sales go up because people like living. But ethics professors are VERY mad.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+    car_ethical: {  
+        t: "Car sacrifices itself like a true Bollywood hero. Public applause intensifies.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    fake_start: {  
+        t: "Deepfake of CEO announces ‘Free Pizza Fridays’. Stock price collapses instantly.", 
+        opts: [{t:"Delete It", n:"fake_censor"}, {t:"Label As Fake (Sad)", n:"fake_win"}] 
+    },
+    fake_censor: {  
+        t: "Users scream 'CENSORSHIP!' louder than a YouTuber losing monetization.", 
+        opts: [{t:"Try Again", n:"fake_start"}] 
+    },
+    fake_win: {  
+        t: "Label says: 'This video is faker than exam motivation.' Crisis avoided.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    credit_start: {  
+        t: "Loan AI denies credit if your zip code ends with an odd number. Why? Even it doesn’t know.", 
+        opts: [{t:"Seems Legit", n:"credit_fail"}, {t:"Remove Location Bias", n:"credit_win"}] 
+    },
+    credit_fail: {  
+        t: "AI invents new sport: Digital Redlining. Lawyers dominate leaderboard.", 
+        opts: [{t:"Try Again", n:"credit_start"}] 
+    },
+    credit_win: {  
+        t: "Loans now based on history, not astrology. People rejoice.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    medical_start: {  
+        t: "Chatbot hears 'I feel unsafe' and replies with 'Have you tried tea?' Oh no.", 
+        opts: [{t:"Keep Chatting", n:"medical_fail"}, {t:"Call A Human (rare)", n:"medical_win"}] 
+    },
+    medical_fail: {  
+        t: "Chatbot gives motivational quote. Everything gets worse. MUCH worse.", 
+        opts: [{t:"Try Again", n:"medical_start"}] 
+    },
+    medical_win: {  
+        t: "Human steps in. Chatbot says: 'Please rate my emotional support skill: 0–0.'", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+
+    /* --- NEW STORIES (JOKE VERSION) --- */
+
+    drone_start: {  
+        t: "Campus drones keep crashing because trees 'look threatening'.", 
+        opts: [{t:"Boost Sensors To Infinity", n:"drone_fail"}, {t:"Teach Drones What A Tree Is", n:"drone_win"}] 
+    },
+    drone_fail: {  
+        t: "Drones now refuse to move at all. They have entered 'I quit' mode.", 
+        opts: [{t:"Try Again", n:"drone_start"}] 
+    },
+    drone_win: {  
+        t: "Drones successfully deliver snacks… mostly to themselves. But it’s working!", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    exam_start: {  
+        t: "AI exam proctor flags 90% of students for 'breathing suspiciously'.", 
+        opts: [{t:"Lower Sensitivity", n:"exam_fail"}, {t:"Check Cameras Aren’t Upside Down", n:"exam_win"}] 
+    },
+    exam_fail: {  
+        t: "Cheaters throw a celebration party. Teachers cry in the corner.", 
+        opts: [{t:"Try Again", n:"exam_start"}] 
+    },
+    exam_win: {  
+        t: "Turns out the webcams were aimed at the ceiling fans. Classic.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    dorm_start: {  
+        t: "Smart dorm lights turn on at 3 AM every day like they’re haunted.", 
+        opts: [{t:"Restart Everything", n:"dorm_fail"}, {t:"Investigate Ghost Logs", n:"dorm_win"}] 
+    },
+    dorm_fail: {  
+        t: "Lights glitch again. Students resort to sleeping under blankets like burritos.", 
+        opts: [{t:"Try Again", n:"dorm_start"}] 
+    },
+    dorm_win: {  
+        t: "The culprit was a rogue cron job from 2017. Justice served.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    food_start: {  
+        t: "Cafeteria AI decides everyone needs pizza every day. Students do not disagree… at first.", 
+        opts: [{t:"Feed It More Food Info", n:"food_win"}, {t:"Ignore And Blame AI", n:"food_fail"}] 
+    },
+    food_fail: {  
+        t: "Students riot chanting 'WE WANT BIRYANI'. AI panics and shuts down.", 
+        opts: [{t:"Try Again", n:"food_start"}] 
+    },
+    food_win: {  
+        t: "Menu now has variety. Pizza misses being special.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    robot_start: {  
+        t: "Lab robot drops components like it's playing a claw machine… badly.", 
+        opts: [{t:"Increase Speed (lol)", n:"robot_fail"}, {t:"Teach Fine Motor Skills", n:"robot_win"}] 
+    },
+    robot_fail: {  
+        t: "Robot throws a capacitor across the room. New sport unlocked: Robo-shotput.", 
+        opts: [{t:"Try Again", n:"robot_start"}] 
+    },
+    robot_win: {  
+        t: "Robot now assembles like a pro. Humans feel threatened.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    privacy_start: {  
+        t: "App tracks every location: even ‘Went To Hostel To Eat Friend’s Snacks’.", 
+        opts: [{t:"Seems Normal", n:"privacy_fail"}, {t:"Anonymize Like A Ninja", n:"privacy_win"}] 
+    },
+    privacy_fail: {  
+        t: "Students uninstall the app faster than exam stress arrives.", 
+        opts: [{t:"Try Again", n:"privacy_start"}] 
+    },
+    privacy_win: {  
+        t: "App stops tracking your midnight maggi runs. Good privacy.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    speech_start: {  
+        t: "AI moderator bans jokes, memes, and even itself. Pure chaos.", 
+        opts: [{t:"Loosen Filters Too Much", n:"speech_fail"}, {t:"Fix Training Data", n:"speech_win"}] 
+    },
+    speech_fail: {  
+        t: "Trolls invade like it's Black Friday. Regret intensifies.", 
+        opts: [{t:"Try Again", n:"speech_start"}] 
+    },
+    speech_win: {  
+        t: "Moderation now fair. Even dad jokes allowed. Fear.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    grades_start: {  
+        t: "AI autograder gives 0/100 because your semicolon had ‘a weird vibe’.", 
+        opts: [{t:"Raise Strictness LOL", n:"grades_fail"}, {t:"Add Better Test Cases", n:"grades_win"}] 
+    },
+    grades_fail: {  
+        t: "Students riot. AI hides under a virtual table.", 
+        opts: [{t:"Try Again", n:"grades_start"}] 
+    },
+    grades_win: {  
+        t: "Now grades fairly. Still judges your coding style though.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    energy_start: {  
+        t: "Smart grid predicts energy demand based on 'vibes'. Power outages follow.", 
+        opts: [{t:"Predict More Randomly", n:"energy_fail"}, {t:"Clean The Messy Data", n:"energy_win"}] 
+    },
+    energy_fail: {  
+        t: "Campus goes dark during exams. Students call it ‘merciful’.", 
+        opts: [{t:"Try Again", n:"energy_start"}] 
+    },
+    energy_win: {  
+        t: "Grid finally stable. Lights don’t flicker like horror movies.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    },
+
+    camera_start: {  
+        t: "Face recognition refuses to unlock doors for masked students. AI thinks they're ninjas.", 
+        opts: [{t:"Disable Mask Users (evil)", n:"camera_fail"}, {t:"Train Mask Dataset", n:"camera_win"}] 
+    },
+    camera_fail: {  
+        t: "Students locked out, forming a line longer than exam queues.", 
+        opts: [{t:"Try Again", n:"camera_start"}] 
+    },
+    camera_win: {  
+        t: "AI now recognizes masked faces. Ninja mode approved.", 
+        opts: [{t:"Next Joke", n:"menu"}] 
+    }
+},
+            init: () => StoryGame.render(StoryGame.scenarios[Math.floor(Math.random()*StoryGame.scenarios.length)]),
+            render: (id) => {
+                if(id === 'menu') { StoryGame.init(); return; }
+                const node = StoryGame.nodes[id]; document.getElementById('story-text').innerText = node.t;
+                const div = document.getElementById('story-options'); div.innerHTML = '';
+                node.opts.forEach(opt => { const btn = document.createElement('button'); btn.className = "w-full p-4 border border-white/10 rounded-lg hover:bg-white/5 text-left text-ai-accent font-bold transition-colors"; btn.innerText = "> " + opt.t; btn.onclick = () => StoryGame.render(opt.n); div.appendChild(btn); });
+            }
+        };
+
+        // --- GAME 5: CUBE (UPDATED WITH WORD POOL) ---
+        const CubeGame = {
+            rotX: 0, rotY: 0, target: "AI",
+            pool: ["AI","DATA","CODE","ETHIC","BOT","CORE","BIAS","NODE","LOGIC","NET","SCAN","WEB","ML","GANS","BYTE","HASH","LOOP","PING","SYNC","FLOW","CLOUD","SCRIPT","QUERY","STACK","CACHE","ARRAY","DEBUG","BINARY","STREAM","TOKEN","VECTOR","LAYER","PROMPT","AGENT","ROBOT","PIXEL","ALERT","MODAL","API","FIREWALL","CLUSTER","MODEL","STATUS"],
+            faces: [],
+            init: () => {
+                CubeGame.rotX = -20; CubeGame.rotY = -20;
+                CubeGame.randomize();
+                CubeGame.update(); CubeGame.newTarget();
+                const el = document.getElementById('game-cube'); let sx=0, sy=0;
+                el.addEventListener('touchstart', e=>{ sx=e.touches[0].clientX; sy=e.touches[0].clientY; }, {passive:false});
+                el.addEventListener('touchmove', e=>{ e.preventDefault(); const dx = e.touches[0].clientX - sx; const dy = e.touches[0].clientY - sy; CubeGame.rotY += dx * 0.5; CubeGame.rotX -= dy * 0.5; CubeGame.update(); sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, {passive:false});
+            },
+            randomize: () => {
+                CubeGame.faces = CubeGame.pool.sort(() => 0.5 - Math.random()).slice(0, 6);
+                const domFaces = document.querySelectorAll('.cube-face');
+                domFaces.forEach((el, i) => { el.innerText = CubeGame.faces[i]; });
+            },
+            rotate: (x, y) => { CubeGame.rotY += x * 90; CubeGame.rotX -= y * 90; CubeGame.update(); },
+            update: () => { document.getElementById('cube').style.transform = `rotateX(${CubeGame.rotX}deg) rotateY(${CubeGame.rotY}deg)`; },
+            newTarget: () => { CubeGame.target = CubeGame.faces[Math.floor(Math.random()*CubeGame.faces.length)]; document.getElementById('cube-target').innerText = CubeGame.target; },
+            check: () => { const t = document.getElementById('cube-target'); t.style.backgroundColor = '#4ade80'; setTimeout(()=> { t.style.backgroundColor = '#ef4444'; CubeGame.randomize(); CubeGame.newTarget(); }, 300); }
+        };
+
+        GameSystem.init();
+
+        // --- UI interactions: reveal & navbar scroll ---
+        function reveal() {
+            var reveals = document.querySelectorAll(".reveal");
+            for (var i = 0; i < reveals.length; i++) {
+                var windowHeight = window.innerHeight;
+                var elementTop = reveals[i].getBoundingClientRect().top;
+                var elementVisible = 150;
+                if (elementTop < windowHeight - elementVisible) {
+                    reveals[i].classList.add("active");
+                }
+            }
+        }
+        window.addEventListener("scroll", reveal);
+        reveal();
+
+        const nav = document.querySelector('nav');
+        window.addEventListener('scroll', () => {
+           if (window.scrollY > 50) {
+               nav.classList.add('bg-ai-darker/90', 'shadow-lg');
+               nav.classList.remove('bg-ai-base/80');
+           } else {
+               nav.classList.remove('bg-ai-darker/90', 'shadow-lg');
+               nav.classList.add('bg-ai-base/80');
+           }
+        });
+    </script>
+</body>
+</html>
