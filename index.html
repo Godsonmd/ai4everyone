@@ -172,6 +172,101 @@
         body.neural-active #neural-canvas { z-index: 50; opacity: 1; background: rgba(2, 6, 23,0.9); }
         body.neural-active #game-overlay { background: transparent; pointer-events: none; }
         body.neural-active #game-neural { pointer-events: auto; }
+
+         #ai-graph-wrapper { pointer-events: none; }
+        #nodes-container { pointer-events: none; }
+
+        /* The Dark Overlay Background */
+        #ai-background-overlay {
+            position: absolute; inset: 0;
+            background: rgba(2, 6, 23, 0.95); /* Dark Blue */
+            opacity: 0; transition: opacity 0.5s ease;
+            backdrop-filter: blur(5px);
+            z-index: 0;
+        }
+        #ai-graph-wrapper.active #ai-background-overlay { opacity: 1; }
+
+        /* Graph Trigger Button Animation */
+        #graph-trigger-btn {
+            transition: all 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            z-index: 2050;
+        }
+        
+        /* Class to move button to center */
+        .btn-center {
+            left: 50% !important;
+            bottom: 50% !important;
+            transform: translate(-50%, 50%) scale(1.5) !important;
+            border-color: #00ffff !important;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.5) !important;
+        }
+
+        .graph-node {
+            position: absolute;
+            width: 3.5rem; height: 3.5rem;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(8px);
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            pointer-events: auto;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0;
+            z-index: 50;
+            color: #e2e8f0;
+        }
+
+        .graph-node.active {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+        }
+
+        .graph-node:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+            border-color: #00ffff;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.4);
+            z-index: 60;
+        }
+
+        /* Category Node Styles */
+        .node-category {
+            width: 4.5rem; height: 4.5rem;
+            font-size: 1.5rem;
+        }
+        .node-category.selected {
+            border-color: #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+            background: rgba(6, 182, 212, 0.2);
+            color: #00ffff;
+        }
+
+        /* Tool Node Styles */
+        .node-tool {
+            width: 3rem; height: 3rem;
+            font-size: 1.1rem;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Label Styles */
+        .node-label {
+            position: absolute; top: 120%; left: 50%; transform: translateX(-50%);
+            font-size: 0.8rem; font-weight: bold; white-space: nowrap;
+            text-shadow: 0 2px 4px black; opacity: 0; pointer-events: none;
+            transition: opacity 0.2s; background: rgba(0,0,0,0.8); 
+            padding: 4px 8px; border-radius: 4px; color: #00ffff;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+        .graph-node:hover .node-label { opacity: 1; }
+        
+        /* Mobile Specific Label Adjustments */
+        @media (max-width: 768px) {
+            .node-label { font-size: 0.65rem; padding: 2px 4px; }
+            .node-category { width: 3.5rem; height: 3.5rem; font-size: 1.2rem; }
+            .node-tool { width: 2.8rem; height: 2.8rem; font-size: 1rem; }
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-ai-accent selection:text-ai-base">
@@ -550,6 +645,7 @@
         </div>
     </section>
 
+    
     <button id="game-trigger-btn" class="w-16 h-16 rounded-full flex items-center justify-center text-ai-accent transition-all duration-300 group">
         <i class="fa-solid fa-gamepad text-3xl group-hover:rotate-12 transition-transform"></i>
     </button>
@@ -699,6 +795,20 @@
         </div>
 
     </div>
+
+
+    <button id="graph-trigger-btn" class="fixed left-8 bottom-8 w-16 h-16 rounded-full bg-ai-darker border-2 border-ai-purple shadow-[0_0_20px_rgba(192,132,252,0.5)] flex items-center justify-center text-ai-purple z-[2050] hover:scale-110 active:scale-95 group">
+        <i class="fa-solid fa-robot text-3xl group-hover:translate-y-[-6px] group-hover:opacity-100 transition-all duration-300"></i>
+    </button>
+
+    <div id="ai-graph-wrapper" class="fixed inset-0 z-[2000] hidden">
+        <div id="ai-background-overlay"></div>
+        <canvas id="electric-canvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+        <div id="nodes-container" class="absolute inset-0 w-full h-full pointer-events-auto"></div>
+    </div>
+
+
+
     <footer class="py-12 bg-ai-darker border-t border-white/5 text-center">
         <div class="max-w-7xl mx-auto px-4">
             <div class="mb-8 flex justify-center items-center gap-4">
@@ -772,8 +882,8 @@
         }
         window.addEventListener('pointermove', onPointerMove, { passive: true });
         window.addEventListener('pointerdown', (e) => createClickRipple(e.clientX, e.clientY), { passive: true });
-        window.addEventListener('pointerleave', onPointerLeave, { passive: true });
-
+        document.addEventListener('pointerleave', onPointerLeave, { passive: true });
+        
         function createClickRipple(x, y) {
             const ripple = document.createElement('div');
             ripple.className = 'click-ripple';
@@ -1438,6 +1548,292 @@ nodes: {
                nav.classList.add('bg-ai-base/80');
            }
         });
+    </script>
+    <script>
+        const AIGraphSystem = {
+        isOpen: false,
+        wrapper: document.getElementById('ai-graph-wrapper'),
+        canvas: document.getElementById('electric-canvas'),
+        ctx: document.getElementById('electric-canvas').getContext('2d'),
+        container: document.getElementById('nodes-container'),
+        trigger: document.getElementById('graph-trigger-btn'),
+        animationFrame: null,
+        activeCategory: null,
+        
+        // NEW EXTENDED DATASET
+        data: [
+    {
+        id: 'cat-text', icon: 'fa-comments', label: 'Text Tools', angle: 80, radius: 160,
+        children: [
+            { id: 'gpt', icon: 'fa-robot', label: 'ChatGPT', url: 'https://chat.openai.com', angle: 95, radius: 280 },
+            { id: 'claude', icon: 'fa-brain', label: 'Claude', url: 'https://claude.ai', angle: 85, radius: 280 },
+            { id: 'gemini', icon: 'fa-brands fa-google', label: 'Gemini', url: 'https://gemini.google.com', angle: 75, radius: 280 },
+            { id: 'perplexity', icon: 'fa-solid fa-p', label: 'Perplexity', url: 'https://www.perplexity.ai', angle: 65, radius: 280 },
+            { id: 'copyai', icon: 'fa-pen-nib', label: 'Copy.ai', url: 'https://www.copy.ai', angle: 55, radius: 280 }
+        ]
+    },
+
+    {
+        id: 'cat-img', icon: 'fa-image', label: 'Image Tools', angle: 45, radius: 160,
+        children: [
+            { id: 'midjourney', icon: 'fa-paintbrush', label: 'Midjourney', url: 'https://www.midjourney.com', angle: 60, radius: 280 },
+            { id: 'dalle', icon: 'fa-palette', label: 'DALL·E', url: 'https://openai.com/dall-e-3', angle: 45, radius: 280 },
+            { id: 'leonardo', icon: 'fa-wand-magic-sparkles', label: 'Leonardo AI', url: 'https://leonardo.ai', angle: 30, radius: 280 },
+            { id: 'bingimg', icon: 'fa-brands fa-windows', label: 'Bing Image', url: 'https://www.bing.com/images/create', angle: 15, radius: 280 }
+        ]
+    },
+
+    {
+        id: 'cat-code', icon: 'fa-code', label: 'Coding Tools', angle: 10, radius: 160,
+        children: [
+            { id: 'github', icon: 'fa-brands fa-github', label: 'Copilot', url: 'https://github.com/features/copilot', angle: 25, radius: 280 },
+            { id: 'replit', icon: 'fa-laptop-code', label: 'Replit', url: 'https://replit.com', angle: 10, radius: 280 },
+            { id: 'codeium', icon: 'fa-bolt', label: 'Codeium', url: 'https://codeium.com', angle: -5, radius: 280 },
+            { id: 'tabnine', icon: 'fa-keyboard', label: 'Tabnine', url: 'https://www.tabnine.com', angle: -20, radius: 280 }
+        ]
+    },
+
+    {
+        id: 'cat-video', icon: 'fa-video', label: 'Video Tools', angle: -30, radius: 160,
+        children: [
+            { id: 'runway', icon: 'fa-film', label: 'Runway', url: 'https://runwayml.com', angle: -15, radius: 280 },
+            { id: 'pika', icon: 'fa-play', label: 'Pika', url: 'https://pika.art', angle: -30, radius: 280 },
+            { id: 'synthesia', icon: 'fa-user', label: 'Synthesia', url: 'https://www.synthesia.io', angle: -45, radius: 280 }
+        ]
+    },
+
+    {
+        id: 'cat-audio', icon: 'fa-microphone', label: 'Audio Tools', angle: -70, radius: 160,
+        children: [
+            { id: 'elevenlabs', icon: 'fa-volume-high', label: 'ElevenLabs', url: 'https://elevenlabs.io', angle: -55, radius: 280 },
+            { id: 'voicemod', icon: 'fa-headphones', label: 'Voicemod', url: 'https://www.voicemod.net', angle: -70, radius: 280 },
+            { id: 'soundraw', icon: 'fa-music', label: 'Soundraw', url: 'https://soundraw.io', angle: -85, radius: 280 }
+        ]
+    },
+
+    {
+        id: 'cat-design', icon: 'fa-pen-ruler', label: 'Design Tools', angle: 120, radius: 160,
+        children: [
+            { id: 'canva', icon: 'fa-solid fa-c', label: 'Canva AI', url: 'https://www.canva.com', angle: 135, radius: 280 },
+            { id: 'adobe', icon: 'fa-solid fa-fire-flame-curved', label: 'Adobe Firefly', url: 'https://firefly.adobe.com', angle: 120, radius: 280 },
+            { id: 'figmaai', icon: 'fa-brands fa-figma', label: 'Figma AI', url: 'https://www.figma.com', angle: 105, radius: 280 }
+        ]
+    },
+
+    {
+        id: 'cat-data', icon: 'fa-database', label: 'Data & Research', angle: 160, radius: 160,
+        children: [
+            { id: 'notebooklm', icon: 'fa-book', label: 'NotebookLM', url: 'https://notebooklm.google.com', angle: 175, radius: 280 },
+            { id: 'scispace', icon: 'fa-flask', label: 'SciSpace', url: 'https://typeset.io', angle: 160, radius: 280 },
+            { id: 'elicit', icon: 'fa-diagram-project', label: 'Elicit', url: 'https://elicit.org', angle: 145, radius: 280 }
+        ]
+    },
+    {
+        id: 'cat-games', icon: 'fa-gamepad', label: 'AI Games', angle: 200, radius: 160,
+        children: [
+            { id: 'inworld', icon: 'fa-solid fa-user-astronaut', label: 'Inworld AI', url: 'https://www.inworld.ai', angle: 215, radius: 280 },
+            { id: 'scenario', icon: 'fa-chart-column', label: 'Scenario AI', url: 'https://www.scenario.com', angle: 200, radius: 280 },
+            { id: 'charactergame', icon: 'fa-solid fa-mask', label: 'Character AI', url: 'https://character.ai', angle: 185, radius: 280 }
+        ]
+    },
+
+    {
+        id: 'cat-ppt', icon: 'fa-file-powerpoint', label: 'PPT Generators', angle: -120, radius: 160,
+        children: [
+            { id: 'tome', icon: 'fa-book-open', label: 'Tome AI', url: 'https://tome.app', angle: -105, radius: 280 },
+            { id: 'gamma', icon: 'fa-solid fa-g', label: 'Gamma', url: 'https://gamma.app', angle: -120, radius: 280 },
+            { id: 'beautifulai', icon: 'fa-wand-magic-sparkles', label: 'Beautiful.ai', url: 'https://www.beautiful.ai', angle: -135, radius: 280 }
+        ]
+    }
+
+],
+
+        activeNodes: [],
+
+        init: () => {
+            window.addEventListener('resize', AIGraphSystem.resize);
+            AIGraphSystem.trigger.addEventListener('click', AIGraphSystem.toggle);
+        },
+
+        resize: () => {
+            if (AIGraphSystem.wrapper.offsetParent !== null) {
+                const dpr = window.devicePixelRatio || 1;
+                const rect = AIGraphSystem.wrapper.getBoundingClientRect();
+                AIGraphSystem.canvas.width = rect.width * dpr;
+                AIGraphSystem.canvas.height = rect.height * dpr;
+                AIGraphSystem.ctx.scale(dpr, dpr);
+                AIGraphSystem.canvas.style.width = `${rect.width}px`;
+                AIGraphSystem.canvas.style.height = `${rect.height}px`;
+            }
+        },
+
+        toggle: () => {
+            if(typeof GameSystem !== 'undefined' && GameSystem.activeGame) GameSystem.close();
+
+            AIGraphSystem.isOpen = !AIGraphSystem.isOpen;
+            const btn = AIGraphSystem.trigger;
+            
+            if (AIGraphSystem.isOpen) {
+                AIGraphSystem.wrapper.classList.remove('hidden');
+                setTimeout(() => AIGraphSystem.wrapper.classList.add('active'), 10);
+                
+                btn.classList.add('btn-center');
+                btn.innerHTML = '<i class="fa-solid fa-xmark text-2xl"></i>';
+                
+                setTimeout(() => {
+                    AIGraphSystem.resize();
+                    AIGraphSystem.renderCategories();
+                    AIGraphSystem.startElectricLoop();
+                }, 500);
+            } else {
+                btn.classList.remove('btn-center');
+                btn.innerHTML = '<i class="fa-solid fa-robot text-3xl group-hover:animate-spin-slow"></i>';
+                AIGraphSystem.clearAllNodes();
+                AIGraphSystem.stopElectricLoop();
+                AIGraphSystem.wrapper.classList.remove('active');
+                
+                setTimeout(() => {
+                    if(!AIGraphSystem.isOpen) AIGraphSystem.wrapper.classList.add('hidden');
+                }, 500);
+            }
+        },
+
+        // DYNAMIC RADIUS CALCULATION
+        getCoords: (angleDeg, isTool = false) => {
+            const rect = AIGraphSystem.wrapper.getBoundingClientRect();
+            const originX = rect.width / 2;
+            const originY = rect.height / 2;
+            
+            // Calculate size based on screen dimensions
+            const minDim = Math.min(rect.width, rect.height);
+            const isMobile = minDim < 768;
+            
+            // Dynamic Radii
+            const catRadius = isMobile ? minDim * 0.32 : 220;
+            const toolRadius = isMobile ? minDim * 0.45 : 360;
+            
+            const radius = isTool ? toolRadius : catRadius;
+            const rad = -angleDeg * (Math.PI / 180); 
+            return {
+                x: originX + (Math.cos(rad) * radius),
+                y: originY + (Math.sin(rad) * radius)
+            };
+        },
+
+        renderCategories: () => {
+            AIGraphSystem.data.forEach((cat, index) => {
+                setTimeout(() => {
+                    const pos = AIGraphSystem.getCoords(cat.angle, false);
+                    
+                    const el = document.createElement('div');
+                    el.className = `graph-node node-category`;
+                    el.style.left = `${pos.x}px`;
+                    el.style.top = `${pos.y}px`;
+                    el.innerHTML = `<i class="fa-solid ${cat.icon}"></i><span class="node-label">${cat.label}</span>`;
+                    
+                    el.onclick = () => AIGraphSystem.openCategory(index, pos.x, pos.y);
+
+                    AIGraphSystem.container.appendChild(el);
+                    requestAnimationFrame(() => el.classList.add('active'));
+                    
+                    const rect = AIGraphSystem.wrapper.getBoundingClientRect();
+                    AIGraphSystem.activeNodes.push({
+                        id: `cat-${index}`, type: 'category',
+                        x: pos.x, y: pos.y, 
+                        parentX: rect.width / 2, parentY: rect.height / 2,
+                        element: el
+                    });
+                }, index * 80);
+            });
+        },
+
+        openCategory: (index, parentX, parentY) => {
+            AIGraphSystem.clearToolNodes();
+            document.querySelectorAll('.node-category').forEach(el => el.classList.remove('selected'));
+            AIGraphSystem.activeNodes.find(n => n.id === `cat-${index}`).element.classList.add('selected');
+
+            const category = AIGraphSystem.data[index];
+
+            category.children.forEach((tool, tIndex) => {
+                setTimeout(() => {
+                    const pos = AIGraphSystem.getCoords(tool.angle, true);
+                    
+                    const el = document.createElement('a');
+                    el.href = tool.url; el.target = "_blank";
+                    el.className = `graph-node node-tool`;
+                    el.style.left = `${pos.x}px`;
+                    el.style.top = `${pos.y}px`;
+                    el.innerHTML = `<i class="fa-solid ${tool.icon}"></i><span class="node-label">${tool.label}</span>`;
+                    
+                    AIGraphSystem.container.appendChild(el);
+                    requestAnimationFrame(() => el.classList.add('active'));
+
+                    AIGraphSystem.activeNodes.push({
+                        type: 'tool', x: pos.x, y: pos.y, 
+                        parentX: parentX, parentY: parentY,
+                        element: el
+                    });
+                }, tIndex * 50);
+            });
+        },
+
+        clearToolNodes: () => {
+            document.querySelectorAll('.node-tool').forEach(t => t.remove());
+            AIGraphSystem.activeNodes = AIGraphSystem.activeNodes.filter(n => n.type === 'category');
+        },
+
+        clearAllNodes: () => {
+            AIGraphSystem.container.innerHTML = '';
+            AIGraphSystem.activeNodes = [];
+        },
+
+        drawLightning: (x1, y1, x2, y2) => {
+            const ctx = AIGraphSystem.ctx;
+            const dist = Math.hypot(x2 - x1, y2 - y1);
+            const steps = dist / 10;
+            
+            ctx.beginPath();
+            ctx.strokeStyle = "#00ffff"; ctx.lineWidth = 2;
+            ctx.shadowBlur = 10; ctx.shadowColor = "#00ffff";
+            ctx.moveTo(x1, y1);
+
+            let currX = x1, currY = y1;
+            for (let i = 0; i < steps; i++) {
+                const t = (i + 1) / steps;
+                const targetX = x1 + (x2 - x1) * t;
+                const targetY = y1 + (y2 - y1) * t;
+                const jitter = (Math.random() - 0.5) * 10; 
+                const dampener = Math.sin(t * Math.PI); 
+                currX = targetX + (jitter * dampener);
+                currY = targetY + (jitter * dampener);
+                ctx.lineTo(currX, currY);
+            }
+            ctx.stroke();
+            ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x1, y1, 2, 0, Math.PI*2); ctx.arc(x2, y2, 2, 0, Math.PI*2); ctx.fill();
+        },
+
+        animateLoop: () => {
+            const ctx = AIGraphSystem.ctx;
+            const width = AIGraphSystem.wrapper.offsetWidth;
+            const height = AIGraphSystem.wrapper.offsetHeight;
+            ctx.clearRect(0, 0, width, height);
+            AIGraphSystem.activeNodes.forEach(node => { AIGraphSystem.drawLightning(node.parentX, node.parentY, node.x, node.y); });
+            AIGraphSystem.animationFrame = requestAnimationFrame(AIGraphSystem.animateLoop);
+        },
+
+        startElectricLoop: () => {
+            if(AIGraphSystem.animationFrame) cancelAnimationFrame(AIGraphSystem.animationFrame);
+            AIGraphSystem.animateLoop();
+        },
+
+        stopElectricLoop: () => {
+            cancelAnimationFrame(AIGraphSystem.animationFrame);
+            const width = AIGraphSystem.wrapper.offsetWidth;
+            const height = AIGraphSystem.wrapper.offsetHeight;
+            AIGraphSystem.ctx.clearRect(0, 0, width, height);
+        }
+    };
+    document.addEventListener('DOMContentLoaded', AIGraphSystem.init);
     </script>
 </body>
 </html>
