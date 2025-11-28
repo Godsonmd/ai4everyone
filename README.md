@@ -13,7 +13,7 @@ This README contains everything you need to add to the repository `README.md` on
 ## Live demo
 
 A demo link is embedded in the app UI: `https://godsonmd.github.io/ai4everyone/` (also exposed in the page links). You can open `index.html` locally for a full experience.
-
+[Open Site](https://godsonmd.github.io/ai4everyone/)
 ---
 
 ## Key features
