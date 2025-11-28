@@ -2,8 +2,7 @@
 
 ## Project overview
 
-**Repository:** `godsonmd/ai4everyone`
-**Files analyzed:** `index.html`, `LICENSE`
+
 
 `AI for Everyone` is a single-page static web experience built as a statewide initiative prototype for AI literacy (an initiative enabled by **TinkerHub**). The site is an interactive, educational landing page that mixes content, visuals and mini-games (AI Arcade) to introduce AI concepts to learners across ages and backgrounds.
 
@@ -13,7 +12,7 @@ This README contains everything you need to add to the repository `README.md` on
 
 ## Live demo
 
-A demo link is embedded in the app UI: `https://ai-challenge-build-with-ai-hmt7.vercel.app/` (also exposed in the page links). You can open `index.html` locally for a full experience.
+A demo link is embedded in the app UI: `https://godsonmd.github.io/ai4everyone/` (also exposed in the page links). You can open `index.html` locally for a full experience.
 
 ---
 
